@@ -186,7 +186,8 @@ class Encoder(nn.Module):
                                   padding=1)]
         for i in range(depth):
             in_conv_list.append(ResConBlock(in_channels=hidden))
-    
+        self.in_conv = nn.Sequential(*in_conv_list)
+
     def forward(self, x):
         x = self.in_conv(x)
         return x
@@ -209,7 +210,7 @@ class Decoder(nn.Module):
                                    nn.Sigmoid()))
 
         self.out_conv = nn.Sequential(*out_conv_list)
-    
+
     def forward(self, x):
         x = self.out_conv(x)
         return x
