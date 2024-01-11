@@ -54,7 +54,7 @@ class Log():
     def add_plot_image(self, cate:str, global_step:int, **kwargs):
         for k, v in kwargs.items():
             if torch.is_tensor(v):
-                if v.dim() == 3 and v.shape[0] != 1:
+                if v.dim() == 3:
                     v = v[0]
                 v = v.detach().cpu().numpy()
 

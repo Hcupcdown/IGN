@@ -6,12 +6,12 @@ def get_config():
 
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--action', type=str, default='train', help='Action') # train / test
-    parser.add_argument('--network', type=str, default='VAE', help='train VAE or IGN') # train / test
+    parser.add_argument('action', type=str, default='train', help='Action') # train / test
+    parser.add_argument('--network', type=str, default='condition', help='train condition or IGN') # train / test
     # dataset
-    parser.add_argument('--train', type=str, default=r'E:\radar_sound_dataset\sound_radar', help='Train path')
-    parser.add_argument('--val', type=str, default=r'E:\radar_sound_dataset\sound_radar', help='Val path')
-    parser.add_argument('--test', type=str, default=r'E:\radar_sound_dataset\sound_radar', help='Test path')
+    parser.add_argument('--train', type=str, default=r'D:\radar_sound_dataset\sound2radar_dataset', help='Train path')
+    parser.add_argument('--val', type=str, default=r'D:\radar_sound_dataset\sound2radar_dataset', help='Val path')
+    parser.add_argument('--test', type=str, default=r'D:\radar_sound_dataset\sound2radar_dataset', help='Test path')
     parser.add_argument('--segment', type=int, default=320, help='Segment')
 
     #vqvae
@@ -20,12 +20,12 @@ def get_config():
     parser.add_argument('--depth', type=int, default=4, help='Depth')
 
     #basic 
-    parser.add_argument('--model_path', type=str, default='log/23-12-14-23-25-08/model/best_train.pth', help='Model path')
+    parser.add_argument('--model_path', type=str, default='log/24-01-10-22-07-46/model/temp_train.pth', help='Model path')
     parser.add_argument('--model_name', type=str, default='best_model.pth', help='Model name') # select manner_ {small, base, large}
-    parser.add_argument('--learning_rate', type=float, default=1e-4, help='Learning rate')
+    parser.add_argument('--learning_rate', type=float, default=1e-5, help='Learning rate')
     parser.add_argument('--epoch', type=int, default=500, help='Epoch')
     parser.add_argument('--batch_size', type=int, default=4, help='Batch size')
-    parser.add_argument('--checkpoint', type=bool, default=False, help='Checkpoint') # If you want to train with pre-trained, or resume set True
+    parser.add_argument('--checkpoint', type=bool, default=True, help='Checkpoint') # If you want to train with pre-trained, or resume set True
 
     # device 
     parser.add_argument('--device', type=str, default='cuda:0', help='Gpu device')

@@ -14,7 +14,6 @@ from .conformer import ConformerBlock
 # MANNER (https://github.com/winddori2002/MANNER) / author: winddori2002
 
 
-
 class BasicConv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, relu=True, bn=True, bias=False):
         super().__init__()
@@ -120,12 +119,12 @@ class Conv1dBlock(nn.Module):
                  out_channels,
                  kernel_size,
                  stride=1,
-                 padding=0,
+                 padding=1,
                  dilation=1,
                  groups=1,
                  relu=True,
-                 bn=True,
-                 bias=False):
+                 bn=False,
+                 bias=True):
         super().__init__()
 
         self.conv = nn.Conv1d(in_channels,
@@ -140,15 +139,15 @@ class Conv1dBlock(nn.Module):
         self.bn   = nn.BatchNorm1d(out_channels, eps=1e-5, momentum=0.01, affine=True) if bn else None
         self.relu = nn.ReLU() if relu else None
 
-    def forward(self, x):
+    def forward(self, x_in):
         
-        x = self.conv(x)
+        x = self.conv(x_in)
         if self.bn is not None:
             x = self.bn(x)
         if self.relu is not None:
             x = self.relu(x)
             
-        return x
+        return x + x_in
 
 class Conv2dBlock(nn.Module):
     def __init__(self,
@@ -161,7 +160,7 @@ class Conv2dBlock(nn.Module):
                  groups:int = 1,
                  bias:bool = False,
                  relu:bool = True,
-                 bn:bool = True) -> None:
+                 bn:bool = False) -> None:
         super().__init__()
         self.conv = nn.Conv2d(in_channels=in_channels, 
                               out_channels=out_channels, 
@@ -233,7 +232,7 @@ class UNet(nn.Module):
     def __init__(self, 
                  in_channels:int=513,
                  hidden:int=513,
-                 depth:int=2,
+                 depth:int=6,
                  kernel_size:int=4,
                  stride:int=2,
                  device:str="cuda:0"):
@@ -243,59 +242,36 @@ class UNet(nn.Module):
         self.stride = stride
         self.depth = depth
         self.device = device
-        self.in_conv = nn.Sequential(
-            ResBlock(nn.Sequential(
-            nn.Conv1d(in_channels, hidden, kernel_size=3, stride=1, padding=1),
-            nn.InstanceNorm1d(hidden),
-            nn.ReLU(),
-            )),
-            ResBlock(nn.Sequential(
-            nn.Conv1d(hidden, hidden, kernel_size=3, stride=1, padding=1),
-            nn.InstanceNorm1d(hidden),
-            nn.ReLU(),
-            )),
-            ResBlock(nn.Sequential(
-            nn.Conv1d(hidden, hidden, kernel_size=3, stride=1, padding=1),
-            nn.InstanceNorm1d(hidden),
-            nn.ReLU(),
-            ))
-            )
-        self.out_conv = nn.Conv1d(hidden, in_channels, kernel_size=3, stride=1, padding=1)
+        in_convs = [nn.Conv1d(in_channels=in_channels,
+                             out_channels=hidden,
+                             kernel_size=3,
+                             stride=1,
+                             padding=1)]
+        out_convs = []
+        for i in range(depth):
+            in_convs.append(Conv1dBlock(in_channels=hidden,
+                                        out_channels=hidden,
+                                        kernel_size=3,
+                                        stride=1,
+                                        padding=1))
+            out_convs.append(Conv1dBlock(in_channels=hidden,
+                                         out_channels=hidden,
+                                         kernel_size=3,
+                                         stride=1,
+                                         padding=1))
+        out_convs.append(nn.Sequential(nn.Conv1d(in_channels=hidden,
+                                   out_channels=in_channels,
+                                   kernel_size=3,
+                                   stride=1,
+                                   padding=1),
+                                   nn.Sigmoid()))
+        self.in_conv = nn.Sequential(*in_convs)
+        self.out_conv = nn.Sequential(*out_convs)
         self.length = None
-        # encoders = []
-        # decoders = []
-        # for layer in range(depth):
-        #     encoders.append(Encoder(in_channels=hidden,
-        #                            out_channels=hidden,
-        #                            kernel_size=kernel_size,
-        #                            stride=stride,
-        #                            layer=layer,
-        #                            depth=depth))
-
-        #     decoders.append(Decoder(in_channels=hidden,
-        #                            out_channels=hidden,
-        #                            kernel_size=kernel_size,
-        #                            stride=stride,
-        #                            layer=layer,
-        #                            depth=depth))
-
-        # decoders.reverse()
         self.flag = 0
-        # self.encoders = nn.ModuleList(encoders)
-        # self.decoders = nn.ModuleList(decoders)
-        
-        # self.compress = nn.Sequential(
-        #     nn.Conv1d(hidden, hidden//2, kernel_size=3, stride=1, padding=1),
-        #     nn.InstanceNorm1d(hidden//2),
-        #     nn.ReLU()
-        # )
-        # self.uncompress = nn.Sequential(
-        #     nn.Conv1d(hidden//2, hidden, kernel_size=3, stride=1, padding=1),
-        #     nn.InstanceNorm1d(hidden),
-        #     nn.ReLU()
-        # )
 
-        for i in range(5):
+
+        for i in range(1):
             setattr(self, f"conformer_{i}", ConformerBlock(dim=hidden, ff_mult=4, ff_dropout=0.1, conv_dropout=0.1))
 
     def forward(self, x):
@@ -307,20 +283,110 @@ class UNet(nn.Module):
         self.cal_padding(length)
         x = F.pad(x, (0, self.length - length))
         x = self.in_conv(x)
-        # encode
-        # for encoder in self.encoders:
-        #     x = encoder(x)
 
-        # x = self.compress(x)
         x = x.permute(0,2,1).contiguous()
-        for i in range(5):
+        for i in range(1):
             x = getattr(self, f"conformer_{i}")(x) + x
         x = x.permute(0,2,1).contiguous()
-        # x = self.uncompress(x)
 
-        # decode
-        # for decoder in self.decoders:
-        #     x = decoder(x)
+
+        x = self.out_conv(x) 
+        x = x[..., :length]
+        
+        return x
+
+
+    def cal_padding(self, length):
+        length = math.ceil(length)
+        for idx in range(self.depth):
+            length = math.ceil((length - self.kernel_size) / self.stride) + 1
+            length = max(length, 1)
+        for idx in range(self.depth):
+            length = (length - 1) * self.stride + self.kernel_size
+        length = int(math.ceil(length))
+        self.length =  int(length)
+
+
+class ConditionUNet(nn.Module):
+    def __init__(self, 
+                 in_channels:int=513,
+                 hidden:int=513,
+                 depth:int=6,
+                 kernel_size:int=4,
+                 stride:int=2,
+                 device:str="cuda:0"):
+        super().__init__()
+
+        self.kernel_size  = kernel_size
+        self.stride = stride
+        self.depth = depth
+        self.device = device
+        in_convs = [nn.Conv1d(in_channels=in_channels,
+                             out_channels=hidden,
+                             kernel_size=3,
+                             stride=1,
+                             padding=1)]
+        condition_in_convs = [nn.Conv1d(in_channels=in_channels,
+                             out_channels=hidden,
+                             kernel_size=3,
+                             stride=1,
+                             padding=1)]
+        out_convs = []
+        for i in range(depth):
+            in_convs.append(Conv1dBlock(in_channels=hidden,
+                                        out_channels=hidden,
+                                        kernel_size=3,
+                                        stride=1,
+                                        padding=1))
+            condition_in_convs.append(Conv1dBlock(in_channels=hidden,
+                                        out_channels=hidden,
+                                        kernel_size=3,
+                                        stride=1,
+                                        padding=1))
+            out_convs.append(Conv1dBlock(in_channels=hidden,
+                                         out_channels=hidden,
+                                         kernel_size=3,
+                                         stride=1,
+                                         padding=1))
+        out_convs.append(nn.Sequential(nn.Conv1d(in_channels=hidden,
+                                   out_channels=in_channels,
+                                   kernel_size=3,
+                                   stride=1,
+                                   padding=1),
+                                   nn.Sigmoid()))
+        self.in_conv = nn.Sequential(*in_convs)
+        self.condition_in_conv = nn.Sequential(*condition_in_convs)
+        self.out_conv = nn.Sequential(*out_convs)
+        self.length = None
+        self.fusion_layear = nn.Sequential(
+            nn.Conv1d(hidden*2, hidden, kernel_size=3, stride=1, padding=1),
+            nn.InstanceNorm1d(hidden),
+            nn.ReLU()
+        )
+        self.flag = 0
+
+        for i in range(1):
+            setattr(self, f"conformer_{i}", ConformerBlock(dim=hidden, ff_mult=4, ff_dropout=0.1, conv_dropout=0.1))
+
+    def forward(self, x, condition):
+        """
+        input X : [B, C, T]
+        output X: [B, C, T]
+        """
+        length = x.shape[-1]
+        self.cal_padding(length)
+        x = F.pad(x, (0, self.length - length))
+        condition = F.pad(condition, (0, self.length - length))
+        x = self.in_conv(x)
+        condition = self.condition_in_conv(condition)
+        x = torch.cat([x, condition], dim=1)
+        x = self.fusion_layear(x)
+
+        x = x.permute(0,2,1).contiguous()
+        for i in range(1):
+            x = getattr(self, f"conformer_{i}")(x) + x
+        x = x.permute(0,2,1).contiguous()
+
 
         x = self.out_conv(x) 
         x = x[..., :length]

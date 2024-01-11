@@ -7,8 +7,6 @@ from dataset import *
 from utils import *
 from utils.log import Log
 
-from .evaluation import *
-
 
 class Trainer():
     def __init__(self, model, data, args):
@@ -32,9 +30,10 @@ class Trainer():
             self._load_checkpoint()
 
     def _load_checkpoint(self):
+
         print("------load checkpoint---------")
-        checkpoint = torch.load("log/23-11-18-16-00-52/model/temp_train.pth")
-        self.model.load_state_dict(checkpoint['state_dict'])
+        checkpoint = torch.load(self.args.model_path, map_location=self.device)
+        self.model.load_state_dict(checkpoint['state_dict'], strict=False)
         
     def train(self):
         
@@ -81,12 +80,15 @@ class Trainer():
         return total_loss/(i+1)
 
 class IGNTrainer(Trainer):
+
     def __init__(self, model_copy ,*args):
+    
         super().__init__(*args)
         self.model_copy = model_copy.to(self.device)
         self.mse = nn.MSELoss()
-    
+
     def _run_batch(self, data):
+    
         radar = data["radar"]
         sound = data["sound"]
         x = radar.to(self.device)
@@ -99,10 +101,10 @@ class IGNTrainer(Trainer):
         ff_z = self.model(f_z)
         f_fz = self.model_copy(fz)
         loss_rec = self.mse(fx, x)
-        loss_idem = self.mse(f_fz,fz)#(f_fz - fz).pow(2).mean()
-        loss_tight = -self.mse(ff_z, f_z)#-(ff_z - f_z).pow(2).mean()
+        loss_idem = self.mse(f_fz,fz)
+        loss_tight = -self.mse(ff_z, f_z)
         loss_me = self.mse(fz, x)
-        loss = loss_rec + loss_idem + loss_tight * 0.1 + loss_me*0.1
+        loss = loss_rec + loss_idem + loss_tight * 0.1
 
         return {
             "loss_rec":loss_rec,
@@ -118,23 +120,46 @@ class IGNTrainer(Trainer):
             "f_z":f_z,
             "ff_z":ff_z
         }
+
+class ConditionIGNTrainer(Trainer):
+
+    def __init__(self, model_copy ,*args):
     
-class VAETrainer(Trainer):
-    def __init__(self, **args):
-        super().__init__(**args)
-        self.mse_loss = nn.MSELoss()
+        super().__init__(*args)
+        self.model_copy = model_copy.to(self.device)
+        self.mse = nn.MSELoss()
+
     def _run_batch(self, data):
+    
         radar = data["radar"]
+        sound = data["sound"]
         x = radar.to(self.device)
-        rebuild_x, vq_loss = self.model(x)
-        loss_rebuild = self.mse_loss(rebuild_x, x)
-        loss = loss_rebuild + vq_loss
+        condition = sound.to(self.device)
+        z = torch.randn_like(x)
+        self.model_copy.load_state_dict(self.model.state_dict())
+        
+        fx = self.model(x, condition)
+        fz = self.model(z, condition)
+        f_z = fz.detach()
+        ff_z = self.model(f_z, condition)
+        f_fz = self.model_copy(fz, condition)
+        loss_rec = self.mse(fx, x)
+        loss_idem = self.mse(f_fz,fz)
+        loss_tight = -self.mse(ff_z, f_z)
+        loss_me = self.mse(fz, x)
+        loss = loss_rec + loss_idem + loss_tight * 0.1
 
         return {
-            "loss_rebuild":loss_rebuild,
-            "vq_loss":vq_loss,
+            "loss_rec":loss_rec,
+            "loss_idem":loss_idem,
+            "loss_tight":loss_tight,
+            "loss_me":loss_me,
             "loss":loss
         }, {
             "x":x,
-            "rebuild_x":rebuild_x
+            "fx":fx,
+            "condition":condition,
+            "fz":fz,
+            "f_z":f_z,
+            "ff_z":ff_z
         }
