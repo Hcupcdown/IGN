@@ -81,12 +81,63 @@ class Trainer():
 
 class IGNTrainer(Trainer):
 
-    def __init__(self, model_copy ,*args):
+    def __init__(self,
+                 model_copy,
+                 *args
+                ):
     
         super().__init__(*args)
         self.model_copy = model_copy.to(self.device)
         self.mse = nn.MSELoss()
+    
+    def _forward_with_condition(self, x, condition):
+        z = torch.randn_like(x)
+        fx = self.model(x, condition)
+        fz = self.model(z, condition)
+        f_z = fz.detach()
+        ff_z = self.model(f_z, condition)
+        f_fz = self.model_copy(fz, condition)
 
+        return {
+            "x":x,
+            "fx":fx,
+            "fz":fz,
+            "f_z":f_z,
+            "ff_z":ff_z,
+            "f_fz":f_fz
+        }
+    
+    def _forward_without_condition(self, x, z):
+        fx = self.model(x)
+        fz = self.model(z)
+        f_z = fz.detach()
+        ff_z = self.model(f_z)
+        f_fz = self.model_copy(fz)
+
+        return {
+            'x':x,
+            "fx":fx,
+            "fz":fz,
+            "f_z":f_z,
+            "ff_z":ff_z,
+            "f_fz":f_fz
+        }
+    
+    def _cal_loss(self, fx, fz, f_z, ff_z, f_fz, x):
+        loss_rec = self.mse(fx, x)
+        loss_idem = self.mse(f_fz,fz)
+        loss_tight = -self.mse(ff_z, f_z)
+        loss_me = self.mse(fz, x)
+        loss = loss_rec + loss_idem + loss_tight * 0.1
+
+        return {
+            "loss_rec":loss_rec,
+            "loss_idem":loss_idem,
+            "loss_tight":loss_tight,
+            "loss_me":loss_me,
+            "loss":loss
+        }
+    
     def _run_batch(self, data):
     
         radar = data["radar"]
@@ -95,71 +146,11 @@ class IGNTrainer(Trainer):
         z = sound.to(self.device)
         self.model_copy.load_state_dict(self.model.state_dict())
         
-        fx = self.model(x)
-        fz = self.model(z)
-        f_z = fz.detach()
-        ff_z = self.model(f_z)
-        f_fz = self.model_copy(fz)
-        loss_rec = self.mse(fx, x)
-        loss_idem = self.mse(f_fz,fz)
-        loss_tight = -self.mse(ff_z, f_z)
-        loss_me = self.mse(fz, x)
-        loss = loss_rec + loss_idem + loss_tight * 0.1
+        if self.args.network == 'condition':
+            result = self._forward_with_condition(x, z)
+        else:
+            result = self._forward_without_condition(x, z)
 
-        return {
-            "loss_rec":loss_rec,
-            "loss_idem":loss_idem,
-            "loss_tight":loss_tight,
-            "loss_me":loss_me,
-            "loss":loss
-        }, {
-            "x":x,
-            "fx":fx,
-            "z":z,
-            "fz":fz,
-            "f_z":f_z,
-            "ff_z":ff_z
-        }
-
-class ConditionIGNTrainer(Trainer):
-
-    def __init__(self, model_copy ,*args):
-    
-        super().__init__(*args)
-        self.model_copy = model_copy.to(self.device)
-        self.mse = nn.MSELoss()
-
-    def _run_batch(self, data):
-    
-        radar = data["radar"]
-        sound = data["sound"]
-        x = radar.to(self.device)
-        condition = sound.to(self.device)
-        z = torch.randn_like(x)
-        self.model_copy.load_state_dict(self.model.state_dict())
-        
-        fx = self.model(x, condition)
-        fz = self.model(z, condition)
-        f_z = fz.detach()
-        ff_z = self.model(f_z, condition)
-        f_fz = self.model_copy(fz, condition)
-        loss_rec = self.mse(fx, x)
-        loss_idem = self.mse(f_fz,fz)
-        loss_tight = -self.mse(ff_z, f_z)
-        loss_me = self.mse(fz, x)
-        loss = loss_rec + loss_idem + loss_tight * 0.1
-
-        return {
-            "loss_rec":loss_rec,
-            "loss_idem":loss_idem,
-            "loss_tight":loss_tight,
-            "loss_me":loss_me,
-            "loss":loss
-        }, {
-            "x":x,
-            "fx":fx,
-            "condition":condition,
-            "fz":fz,
-            "f_z":f_z,
-            "ff_z":ff_z
-        }
+        loss = self._cal_loss(**result)
+        result['z'] = z
+        return loss, result

@@ -25,10 +25,7 @@ def main():
         data_loader = build_dataloader(args)
         model = ConditionUNet() if args.network == 'condition' else UNet()
         model_copy = ConditionUNet() if args.network == 'condition' else UNet()
-        if args.network == 'condition':
-            trainer = ConditionIGNTrainer(model_copy, model, data_loader, args)
-        else:
-            trainer = IGNTrainer(model_copy, model, data_loader, args)
+        trainer = IGNTrainer(model_copy, model, data_loader, args)
 
         trainer.train()
     elif args.action == 'test':
