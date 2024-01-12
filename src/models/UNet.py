@@ -121,53 +121,57 @@ class ResConBlock(nn.Module):
         growth1      :  expanding channel size and reduce after GLU.
         growth2      :  decide final channel size in the block, encoder for 2, decoder for 1/2.
     """
-    def __init__(self, in_channels, kernel_size=31, growth1=2, growth2=1):
+    def __init__(self, in_channels, kernel_size=3, growth1=2, growth2=1):
         super().__init__()
         
-        out_channels1 = int(in_channels*growth1)
-        out_channels2 = int(in_channels*growth2)
-        self.point_conv1 = nn.Sequential(
-                                         PointwiseConv(in_channels,
-                                                       out_channels1,
-                                                       stride=1,
-                                                       padding=0,
-                                                       bias=True),
-                                         nn.InstanceNorm1d(out_channels1),
-                                         nn.GLU(dim=1))
-        self.depth_conv  = nn.Sequential(DepthwiseConv(in_channels,
-                                                       in_channels,
-                                                       kernel_size,
-                                                       stride=1,
-                                                       padding=(kernel_size - 1) // 2),
-                                         nn.InstanceNorm1d(in_channels),
-                                         Swish()
-                                        )
-        self.point_conv2 = nn.Sequential(PointwiseConv(in_channels,
-                                                       out_channels2,
-                                                       stride=1,
-                                                       padding=0,
-                                                       bias=True),
-                                         nn.InstanceNorm1d(out_channels2),
-                                         Swish()
-                                        )
-        self.conv = BasicConv(out_channels2,
-                              out_channels2,
-                              kernel_size=1,
+        # out_channels1 = int(in_channels*growth1)
+        # out_channels2 = int(in_channels*growth2)
+        # self.point_conv1 = nn.Sequential(
+        #                                  PointwiseConv(in_channels,
+        #                                                out_channels1,
+        #                                                stride=1,
+        #                                                padding=0,
+        #                                                bias=True),
+        #                                  nn.InstanceNorm1d(out_channels1),
+        #                                  nn.GLU(dim=1))
+        # self.depth_conv  = nn.Sequential(DepthwiseConv(in_channels,
+        #                                                in_channels,
+        #                                                kernel_size,
+        #                                                stride=1,
+        #                                                padding=(kernel_size - 1) // 2),
+        #                                  nn.InstanceNorm1d(in_channels),
+        #                                  Swish()
+        #                                 )
+        # self.point_conv2 = nn.Sequential(PointwiseConv(in_channels,
+        #                                                out_channels2,
+        #                                                stride=1,
+        #                                                padding=0,
+        #                                                bias=True),
+        #                                  nn.InstanceNorm1d(out_channels2),
+        #                                  Swish()
+        #                                 )
+        self.conv = BasicConv(in_channels,
+                              in_channels,
+                              kernel_size=3,
                               stride=1,
-                              relu=False)
+                              padding=1,
+                              relu=True,
+                              bn=False)
         self.shortcut = BasicConv(in_channels,
-                                  out_channels2,
+                                  in_channels,
                                   kernel_size=1,
                                   stride=1,
-                                  relu=False)
+                                  relu=False,
+                                  bn=False)
 
     def forward(self, x):
         
-        out = self.point_conv1(x)
-        out = self.depth_conv(out)
-        out = self.point_conv2(out)
-        out = self.conv(out)
-        out += self.shortcut(x)
+        # out = self.point_conv1(x)
+        # out = self.depth_conv(out)
+        # out = self.point_conv2(out)
+        out = self.conv(x)
+        out1 = self.shortcut(x)
+        out = out + out1
         out = F.relu(out)
         
         return out
@@ -214,7 +218,7 @@ class Decoder(nn.Module):
     def forward(self, x):
         x = self.out_conv(x)
         return x
-    
+
 class UNet(nn.Module):
     def __init__(self, 
                  in_channels:int=513,

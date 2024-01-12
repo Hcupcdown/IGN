@@ -26,7 +26,7 @@ class Inferencer():
     def process_data(self, clean):
         clean = clean.to(self.args.device)
         clean = clean + torch.randn_like(clean) *5e-3
-        clean = self.resampler(clean)
+        # clean = self.resampler(clean)
         clean_spec = self.stft_shift(clean)
         clean_spec = clean_spec ** 0.3
         clean_spec = clean_spec / (clean_spec.max()+1e-8)
@@ -60,10 +60,10 @@ class Inferencer():
             est_radar = est_radar.squeeze(1)
             est_radar = est_radar.detach().cpu().numpy()
             
-            # plt.subplot(122)
-            # plt.imshow(est_radar[0])
-            # plt.colorbar()
-            # plt.show()
+            plt.subplot(122)
+            plt.imshow(est_radar[0])
+            plt.colorbar()
+            plt.show()
 
             # plt.savefig(os.path.join(output_dir, file.replace('.wav', '.png')))
             np.save(os.path.join(output_dir, file.replace('.wav', '.npy')), est_radar)

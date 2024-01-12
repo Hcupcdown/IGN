@@ -7,7 +7,7 @@ def get_config():
     parser = argparse.ArgumentParser()
     
     parser.add_argument('action', type=str, default='train', help='Action') # train / test
-    parser.add_argument('--network', type=str, default='condition', help='train condition or IGN') # train / test
+    parser.add_argument('--network', type=str, default='IGN', help='train condition or IGN') # train / test
     # dataset
     parser.add_argument('--train', type=str, default=r'D:\radar_sound_dataset\sound2radar_dataset', help='Train path')
     parser.add_argument('--val', type=str, default=r'D:\radar_sound_dataset\sound2radar_dataset', help='Val path')
@@ -20,7 +20,7 @@ def get_config():
     parser.add_argument('--depth', type=int, default=4, help='Depth')
 
     #basic 
-    parser.add_argument('--model_path', type=str, default='log/24-01-10-22-07-46/model/temp_train.pth', help='Model path')
+    parser.add_argument('--model_path', type=str, default='log/24-01-12-14-45-38/model/temp_train.pth', help='Model path')
     parser.add_argument('--model_name', type=str, default='best_model.pth', help='Model name') # select manner_ {small, base, large}
     parser.add_argument('--learning_rate', type=float, default=1e-5, help='Learning rate')
     parser.add_argument('--epoch', type=int, default=500, help='Epoch')
