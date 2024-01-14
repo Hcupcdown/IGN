@@ -20,12 +20,12 @@ def get_config():
     parser.add_argument('--depth', type=int, default=4, help='Depth')
 
     #basic 
-    parser.add_argument('--model_path', type=str, default='log/24-01-12-14-45-38/model/temp_train.pth', help='Model path')
+    parser.add_argument('--model_path', type=str, default='log/24-01-13-15-48-40/model/temp_train.pth', help='Model path')
     parser.add_argument('--model_name', type=str, default='best_model.pth', help='Model name') # select manner_ {small, base, large}
     parser.add_argument('--learning_rate', type=float, default=1e-5, help='Learning rate')
     parser.add_argument('--epoch', type=int, default=500, help='Epoch')
     parser.add_argument('--batch_size', type=int, default=4, help='Batch size')
-    parser.add_argument('--checkpoint', type=bool, default=False, help='Checkpoint') # If you want to train with pre-trained, or resume set True
+    parser.add_argument('--checkpoint', type=bool, default=True, help='Checkpoint') # If you want to train with pre-trained, or resume set True
 
     # device 
     parser.add_argument('--device', type=str, default='cuda:0', help='Gpu device')

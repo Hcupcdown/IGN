@@ -31,9 +31,8 @@ def main():
     elif args.action == 'test':
         model = ConditionUNet() if args.network == 'condition' else UNet()
         inferencer = Inferencer(model, args)
-        inferencer.interfere(r"F:\LibriMix\Libri2Mix\wav8k\max\test\s1",
-                             r"e:\radar_sound_dataset\test\mn_radar")
+        inferencer.interfere(r"F:\LibriMix\Libri2Mix\wav8k\max\train-100\s1",
+                             r"F:\LibriMix\Libri2Mix\wav8k\max\train-100\s1_radar")
 
 if __name__ == "__main__":
     main()
-    

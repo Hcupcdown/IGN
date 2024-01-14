@@ -60,10 +60,10 @@ class Inferencer():
             est_radar = est_radar.squeeze(1)
             est_radar = est_radar.detach().cpu().numpy()
             
-            plt.subplot(122)
-            plt.imshow(est_radar[0])
-            plt.colorbar()
-            plt.show()
+            # plt.subplot(122)
+            # plt.imshow(est_radar[0])
+            # plt.colorbar()
+            # plt.show()
 
             # plt.savefig(os.path.join(output_dir, file.replace('.wav', '.png')))
             np.save(os.path.join(output_dir, file.replace('.wav', '.npy')), est_radar)
