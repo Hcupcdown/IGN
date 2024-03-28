@@ -4,12 +4,15 @@ import random
 
 import numpy as np
 import torch
+import torchaudio
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 
 class TrainDataset:
-    def __init__(self, dataset_dir, segment=None):
+    def __init__(self,
+                 dataset_dir,
+                 segment=None):
         """
         TrainDataset:
             dataset_dir: directory containing both clean.json and noisy.json.
@@ -17,40 +20,27 @@ class TrainDataset:
         """
         self.dataset_dir = dataset_dir
         self.segment = segment
+        self.downsampler = torchaudio.transforms.Resample(8000, 1200)
         self._gen_data_list()
 
     def _gen_data_list(self):
         self.sound_list = []
         self.radar_list = []
-        for file in os.listdir(os.path.join(self.dataset_dir, 'sound')):
-            self.sound_list.append(os.path.join(self.dataset_dir, 'sound', file))
-            self.radar_list.append(os.path.join(self.dataset_dir, 'radar', file))
+        for person_id in os.listdir(os.path.join(self.dataset_dir)):
+            for sample in os.listdir(os.path.join(self.dataset_dir, person_id, "audio")):
+                self.sound_list.append(os.path.join(self.dataset_dir, person_id,"audio", sample))
+                self.radar_list.append(os.path.join(self.dataset_dir, person_id, "radar", sample))
 
     def __getitem__(self, index):
         sound_file = self.sound_list[index]
         radar_file = self.radar_list[index]
 
-        sound = torch.tensor(np.load(sound_file), dtype = torch.float32)
+        sound, sr = torchaudio.load(sound_file)
         radar = torch.tensor(np.load(radar_file), dtype = torch.float32)
-        min_length = min(sound.shape[-1], radar.shape[-1])
-        sound = sound[:, :min_length]
-        radar = radar[:, :min_length]
-        file_length = min_length
-        if self.segment is None:
-            return sound, radar
-        
-        #如果长度小于段长度，填充0
-        if file_length < self.segment:
-            sound_out = F.pad(sound, (0, self.segment - file_length))
-            radar_out = F.pad(radar, (0, self.segment - file_length))
+        assert sr == 8000, "Sample rate is not 8000"
+        sound = self.downsampler(sound)
 
-        #否则截取一段
-        else:
-            index = random.randint(0, file_length - self.segment)
-            sound_out = sound[:, index: index+self.segment]
-            radar_out = radar[:, index: index+self.segment]
-
-        return sound_out, radar_out
+        return sound, radar
 
     def __len__(self):
         return len(self.sound_list)

@@ -221,7 +221,7 @@ class Decoder(nn.Module):
 
 class UNet(nn.Module):
     def __init__(self, 
-                 in_channels:int=513,
+                 in_channels:int=1,
                  hidden:int=512,
                  depth:int=6,
                  attn_num:int=5,):
@@ -268,7 +268,7 @@ class UNet(nn.Module):
 
 class ConditionUNet(UNet):
     def __init__(self, 
-                 in_channels:int=513,
+                 in_channels:int=1,
                  hidden:int=512,
                  depth:int=6,
                  attn_num:int=5
